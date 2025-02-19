@@ -8,7 +8,8 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 install: ## Install production dependencies using uv
-	PYTHON=/opt/homebrew/opt/python@3.11/bin/python3.11 uv pip install -r requirements.txt
+	uv venv --python 3.11
+	uv pip install -r requirements.txt
 
 dev-install: install ## Install development dependencies
 	uv pip install pytest black isort mypy ruff

@@ -1,77 +1,152 @@
-# Signature Detection API Service
+# Signature Analysis Service
 
-A FastAPI-based service that detects and extracts signatures from PDF documents. The service processes PDF files, identifies signature regions using computer vision techniques, and provides annotated results along with extracted signatures.
+A comprehensive FastAPI-based service for signature detection, extraction, comparison, and management. The service processes both PDF documents and images, identifies signatures using computer vision techniques, and provides capabilities for signature comparison and verification.
 
 ## Features
 
-- PDF signature detection and extraction
-- Annotated PDF pages showing signature locations
-- Individual signature extraction as separate images
-- Sequential signature numbering across pages
+- Signature detection in PDFs and images
+- Signature extraction and enhancement
+- Signature comparison and similarity matching
+- Feature-based signature analysis
+- Storage and retrieval of signatures
 - REST API with OpenAPI/Swagger documentation
-- Docker support with multi-architecture builds (amd64/arm64)
+- Docker support
 
-## Quick Start
+## Prerequisites
 
-### Using Docker Compose (Recommended)
-
-```bash
-# Pull and run the service
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-```
-
-The service will be available at http://localhost:8000
-
-### Using Docker
-
-```bash
-# Build the image
-docker build -t signature-extraction-service .
-
-# Run the container
-docker run -p 8000:8000 signature-extraction-service
-```
-
-### Local Development
-
-#### Prerequisites
-
-The service requires Python 3.11. You can check your Python version with:
+The service requires Python 3.11. Check your Python version with:
 ```bash
 python3 --version
 ```
 
-If you need to install or update Python, on macOS use:
+System dependencies:
 ```bash
-brew install python@3.11
+# On macOS
+brew install python@3.11 poppler tesseract uv
+
+# On Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install -y poppler-utils tesseract-ocr
+# Install uv using instructions from: https://github.com/astral-sh/uv
 ```
 
-You'll also need some system dependencies:
+## Installation
+
+1. Clone the repository:
 ```bash
-# Install required system libraries for PDF processing
-brew install poppler tesseract
+git clone https://github.com/yourusername/signature-service.git
+cd signature-service
 ```
 
-These dependencies are required for:
-- `poppler`: PDF to image conversion (used by pdf2image)
-- `tesseract`: OCR capabilities (optional, for future use)
+2. Install dependencies using uv:
+```bash
+make install        # Install production dependencies
+make dev-install   # Install development dependencies
+```
 
-Note: The service is tested with Python 3.11.7. While other 3.11.x versions might work, they are not officially supported.
+3. Copy environment template and configure:
+```bash
+cp example.env .env
+```
 
-#### Installation
+## Development
+
+### Available Make Commands
+
+- `make help` - Show available commands
+- `make install` - Install production dependencies using uv
+- `make dev-install` - Install development dependencies
+- `make clean` - Clean up temporary files and directories
+- `make lint` - Run code quality checks (black, isort, mypy, ruff)
+- `make test` - Run tests
+- `make run` - Run the FastAPI application locally
+- `make docker-build` - Build Docker image
+- `make docker-run` - Run Docker container
+
+### Running the Service
 
 ```bash
-# Install dependencies using uv
-make install
+make run  # Runs on http://localhost:8000
+```
 
-# Install development dependencies
-make dev-install
+### Environment Configuration
 
-# Run the service
-make run
+The service uses environment variables for configuration. Example settings in `.env`:
+
+```ini
+# Environment
+ENVIRONMENT=dev  # dev, test, or prod
+
+# Paths and Storage
+SIGNATURE_BASE_DIR=./app
+SIGNATURE_STORAGE_DIR=./storage
+SIGNATURE_TEMP_DIR=./temp_signatures
+SIGNATURE_DB_PATH=./signatures.db
+
+# Processing Limits
+SIGNATURE_MAX_UPLOAD_SIZE=10485760  # 10MB
+SIGNATURE_MAX_PDF_PAGES=50
+SIGNATURE_PROCESS_TIMEOUT=300
+
+# API Configuration
+SIGNATURE_CORS_ORIGINS=["*"]  # Restrict in production
+```
+
+## Project Structure
+```
+app/
+├── __init__.py
+├── main.py           # FastAPI application and routes
+├── models.py         # Pydantic data models
+├── database.py       # Database operations
+├── config.py         # Configuration settings
+├── detection/        # Signature detection
+│   ├── preprocessor.py   # Document preprocessing
+│   └── extractor.py     # Feature extraction
+├── comparison/       # Signature comparison
+│   └── comparator.py    # Comparison logic
+└── utils/           # Utilities
+    ├── file_handler.py  # File operations
+    └── image_utils.py   # Image processing
+```
+
+## API Usage Examples
+
+### Detect Signatures
+```bash
+curl -X 'POST' \
+  'http://localhost:8000/signatures/detect' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'file=@document.pdf'
+```
+
+### Store Signature
+```bash
+curl -X 'POST' \
+  'http://localhost:8000/signatures/store' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'file=@signature.png'
+```
+
+### Compare Signatures
+```bash
+curl -X 'POST' \
+  'http://localhost:8000/signatures/compare' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'file1=@signature1.png' \
+  -F 'file2=@signature2.png'
+```
+
+### Find Similar Signatures
+```bash
+curl -X 'POST' \
+  'http://localhost:8000/signatures/find-similar' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'file=@signature.png'
 ```
 
 ## API Documentation
@@ -79,100 +154,6 @@ make run
 Access the OpenAPI documentation at:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
-
-## API Usage Examples
-
-### Detect Signatures in a PDF
-
-```bash
-curl -X 'POST' \
-  'http://localhost:8000/detect-signatures/' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: multipart/form-data' \
-  -F 'file=@/path/to/your/document.pdf'
-```
-
-Example Response:
-```json
-{
-  "total_signatures": 2,
-  "signatures": [
-    {
-      "page": 1,
-      "signature_id": 1,
-      "coordinates": {
-        "x": 100,
-        "y": 200,
-        "width": 300,
-        "height": 100
-      }
-    }
-  ],
-  "annotated_pages": ["session_123_page_1.png"],
-  "extracted_signatures": ["session_123_signature_1.png"]
-}
-```
-
-### Retrieve Processed Files
-
-```bash
-# Get an annotated page
-curl -X 'GET' \
-  'http://localhost:8000/files/session_123_page_1.png' \
-  -H 'accept: image/png' \
-  --output annotated_page.png
-
-# Get an extracted signature
-curl -X 'GET' \
-  'http://localhost:8000/files/session_123_signature_1.png' \
-  -H 'accept: image/png' \
-  --output signature.png
-```
-
-## Development
-
-### Code Quality
-
-```bash
-# Run linting
-make lint
-
-# Run tests
-make test
-
-# Clean up temporary files
-make clean
-```
-
-### Available Make Commands
-
-Run `make help` to see all available commands:
-- `install`: Install production dependencies
-- `dev-install`: Install development dependencies
-- `clean`: Clean up temporary files
-- `lint`: Run code quality checks
-- `test`: Run tests
-- `run`: Run the FastAPI application locally
-- `docker-build`: Build Docker image
-- `docker-run`: Run Docker container
-
-## Configuration
-
-The service stores temporary files in the `temp_signatures` directory, which is:
-- Automatically created on startup
-- Cleaned up periodically (files older than 1 hour are removed)
-- Mounted as a Docker volume when using docker-compose
-
-## GitHub Container Registry
-
-The service is automatically built and published to GitHub Container Registry:
-```bash
-docker pull ghcr.io/hannes-sistemica/signature-extraction-service:latest
-```
-
-## License
-
-MIT License - see LICENSE file for details.
 
 ## Contributing
 
@@ -182,6 +163,6 @@ MIT License - see LICENSE file for details.
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## Support
+## License
 
-For support, please open an issue in the GitHub repository.
+MIT License - see LICENSE file for details.
