@@ -163,6 +163,9 @@ class DocumentPreprocessor:
         # Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
+        # Save debug image
+        cv2.imwrite(str(Path(settings.TEMP_DIR) / "debug_01_gray.png"), gray)
+        
         # Apply adaptive thresholding
         thresh = cv2.adaptiveThreshold(
             gray, 255, 
@@ -170,10 +173,12 @@ class DocumentPreprocessor:
             cv2.THRESH_BINARY_INV, 
             11, 2
         )
+        cv2.imwrite(str(Path(settings.TEMP_DIR) / "debug_02_thresh.png"), thresh)
         
         # Remove noise
         kernel = np.ones((3,3), np.uint8)
         cleaned = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+        cv2.imwrite(str(Path(settings.TEMP_DIR) / "debug_03_cleaned.png"), cleaned)
         
         return cleaned
 
@@ -200,7 +205,10 @@ class DocumentPreprocessor:
         
         # Remove lines from original
         mask = cv2.bitwise_or(horizontal, vertical)
+        cv2.imwrite(str(Path(settings.TEMP_DIR) / "debug_04_lines_mask.png"), mask)
+        
         cleaned = cv2.bitwise_xor(preprocessed, mask)
+        cv2.imwrite(str(Path(settings.TEMP_DIR) / "debug_05_no_lines.png"), cleaned)
         
         # Find contours in cleaned image
         contours, _ = cv2.findContours(
@@ -230,6 +238,13 @@ class DocumentPreprocessor:
                 
                 if roi.size > 0:
                     text_density = np.sum(roi > 0) / roi.size
+                    
+                    # Save debug ROI
+                    debug_roi = cleaned.copy()
+                    cv2.rectangle(debug_roi, (x, y), (x + w, y + h), 255, 2)
+                    cv2.putText(debug_roi, f"d={text_density:.2f} r={aspect_ratio:.2f}", 
+                              (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 1)
+                    cv2.imwrite(str(Path(settings.TEMP_DIR) / f"debug_06_region_{x}_{y}.png"), debug_roi)
                     
                     # Signatures typically have lower density than text blocks
                     if text_density < 0.2 and 0.5 < aspect_ratio < 5:
