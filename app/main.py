@@ -6,6 +6,7 @@ import json
 import logging
 import sys
 from pathlib import Path
+from app.config import settings
 
 from app.models import (
     DetectionParams,
