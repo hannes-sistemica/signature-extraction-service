@@ -233,18 +233,19 @@ class DocumentPreprocessor:
             area = cv2.contourArea(contour)
             perimeter = cv2.arcLength(contour, True)
             
-            if area < settings.MIN_AREA:
+            if area < 2000:  # Increased minimum area
                 continue
                 
             complexity = perimeter * perimeter / (4 * np.pi * area)
             
-            if complexity > settings.COMPLEXITY_THRESHOLD:
+            if 20 < complexity < 100:  # Tighter complexity range
                 x, y, w, h = cv2.boundingRect(contour)
                 aspect_ratio = w / h
                 
-                # Check if region is isolated (not part of text block)
-                roi = cleaned[max(0, y-20):min(cleaned.shape[0], y+h+20),
-                            max(0, x-20):min(cleaned.shape[1], x+w+20)]
+                # Check larger surrounding area for isolation
+                padding = 50
+                roi = cleaned[max(0, y-padding):min(cleaned.shape[0], y+h+padding),
+                            max(0, x-padding):min(cleaned.shape[1], x+w+padding)]
                 
                 if roi.size > 0:
                     text_density = np.sum(roi > 0) / roi.size
@@ -256,9 +257,10 @@ class DocumentPreprocessor:
                               (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 1)
                     cv2.imwrite(str(Path(settings.TEMP_DIR) / f"debug_06_region_{x}_{y}.png"), debug_roi)
                     
-                    # Signatures typically have lower density than text blocks
-                    if (text_density < settings.DENSITY_MAX and 
-                        settings.ASPECT_RATIO_MIN < aspect_ratio < settings.ASPECT_RATIO_MAX):
+                    # More strict criteria for signatures
+                    if (0.05 < text_density < 0.3 and  # Tighter density range
+                        1.0 < aspect_ratio < 6.0 and  # More typical signature ratio
+                        w > 100 and h > 30):  # Minimum size requirements
                         # Expand bounding box slightly
                         x = max(0, x - 10)
                         y = max(0, y - 5)
