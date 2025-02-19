@@ -215,17 +215,26 @@ class DocumentPreprocessor:
         cleaned = cv2.bitwise_xor(preprocessed, mask)
         cv2.imwrite(str(Path(settings.TEMP_DIR) / "debug_05_no_lines.png"), cleaned)
         
-        # First pass: find and mask detected signatures
+        # Multiple passes to find all signatures
         all_regions = []
-        for pass_num in range(2):  # Do two passes
+        detection_mask = np.zeros_like(cleaned)
+        
+        for pass_num in range(settings.MAX_DETECTION_PASSES):
             logger.info(f"Detection pass {pass_num + 1}")
             
-            # Find contours in cleaned image
+            # Apply existing mask
+            current_image = cv2.bitwise_and(cleaned, cleaned, mask=cv2.bitwise_not(detection_mask))
+            
+            # Find contours in masked image
             contours, _ = cv2.findContours(
-                cleaned, 
+                current_image, 
                 cv2.RETR_EXTERNAL, 
                 cv2.CHAIN_APPROX_SIMPLE
             )
+            
+            if not contours:  # No more regions found
+                logger.info(f"No more regions found after pass {pass_num + 1}")
+                break
         
         signature_regions = []
         
@@ -271,10 +280,19 @@ class DocumentPreprocessor:
             # Add found regions to results
             all_regions.extend(signature_regions)
             
-            # Mask out found regions for next pass
-            if pass_num < 1:  # Only mask after first pass
-                for x, y, w, h in signature_regions:
-                    cleaned[y:y+h, x:x+w] = 0
+            # Update detection mask with found regions
+            for x, y, w, h in signature_regions:
+                # Add padding to mask to prevent overlapping detections
+                pad = 5
+                x_start = max(0, x - pad)
+                y_start = max(0, y - pad)
+                x_end = min(cleaned.shape[1], x + w + pad)
+                y_end = min(cleaned.shape[0], y + h + pad)
+                detection_mask[y_start:y_end, x_start:x_end] = 255
+                
+            if not signature_regions:  # No new signatures found
+                logger.info(f"No new signatures found in pass {pass_num + 1}")
+                break
         
         return all_regions
 

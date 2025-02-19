@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     DENSITY_MAX: float = 0.85
     SOLIDITY_MIN: float = 0.1
     SOLIDITY_MAX: float = 0.98
+    MAX_DETECTION_PASSES: int = 4  # Maximum number of detection passes per page
     
     # Comparison defaults
     COMPARISON_DEFAULTS: Dict[str, Any] = {
