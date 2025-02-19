@@ -305,7 +305,9 @@ class DocumentPreprocessor:
             if signature_regions:
                 all_regions.extend(signature_regions)
                 logger.info(f"Found {len(signature_regions)} signatures in pass {pass_num + 1}")
-                if not found_valid_signature:
+                if found_valid_signature:
+                    logger.info("Valid signature found and masked, continuing to next pass")
+                else:
                     logger.info("No valid signatures found in this pass, stopping detection")
                     break
             else:
