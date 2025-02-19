@@ -176,7 +176,7 @@ class DocumentPreprocessor:
             255,
             cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv2.THRESH_BINARY_INV,
-            settings.SIGNATURE_ADAPTIVE_BLOCK_SIZE,
+            settings.ADAPTIVE_BLOCK_SIZE,
             11  # Default C value
         )
         
@@ -202,7 +202,7 @@ class DocumentPreprocessor:
         
         for contour in contours:
             area = cv2.contourArea(contour)
-            if area < settings.SIGNATURE_MIN_AREA:  # Use environment setting
+            if area < settings.MIN_AREA:  # Use environment setting
                 continue
                 
             # Calculate perimeter and shape metrics
@@ -220,7 +220,7 @@ class DocumentPreprocessor:
             complexity = peri * peri / (4 * np.pi * area) if area > 0 else 0
             
             # Signature-specific criteria
-            if (complexity > settings.SIGNATURE_COMPLEXITY_THRESHOLD and  # Use environment setting
+            if (complexity > settings.COMPLEXITY_THRESHOLD and  # Use environment setting
                 0.2 < solidity < 0.95 and  # Not too solid (text) or sparse
                 0.1 < extent < 0.7 and  # Not too dense like printed text
                 0.5 < aspect_ratio < 5):  # Reasonable aspect ratio
