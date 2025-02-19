@@ -63,44 +63,44 @@ class DocumentPreprocessor:
                             continue
                             
                         valid_signatures += 1
-                            x, y, w, h = region
+                        x, y, w, h = region
                             
-                            # Draw rectangle and ID
-                            cv2.rectangle(annotated, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                            cv2.putText(
-                                annotated,
-                                f"#{signature_counter}",
-                                (x, y-10),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.9,
-                                (0, 255, 0),
-                                2
-                            )
-                            
-                            # Extract signature
-                            signature = self._extract_signature(image, region)
-                            
-                            # Save signature image
-                            signature_filename = f"{session_id}_signature_{signature_counter}.png"
-                            signature_path = Path(settings.TEMP_DIR) / signature_filename
-                            cv2.imwrite(str(signature_path), signature)
-                            
-                            extracted_signatures.append(signature_filename)
-                            
-                            # Store location
-                            results.append(SignatureLocation(
-                                page=page_num,
-                                signature_id=signature_counter,
-                                coordinates={
-                                    "x": x,
-                                    "y": y,
-                                    "width": w,
-                                    "height": h
-                                }
-                            ))
-                            
-                            signature_counter += 1
-                    
+                        # Draw rectangle and ID
+                        cv2.rectangle(annotated, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                        cv2.putText(
+                            annotated,
+                            f"#{signature_counter}",
+                            (x, y-10),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.9,
+                            (0, 255, 0),
+                            2
+                        )
+                        
+                        # Extract signature
+                        signature = self._extract_signature(image, region)
+                        
+                        # Save signature image
+                        signature_filename = f"{session_id}_signature_{signature_counter}.png"
+                        signature_path = Path(settings.TEMP_DIR) / signature_filename
+                        cv2.imwrite(str(signature_path), signature)
+                        
+                        extracted_signatures.append(signature_filename)
+                        
+                        # Store location
+                        results.append(SignatureLocation(
+                            page=page_num,
+                            signature_id=signature_counter,
+                            coordinates={
+                                "x": x,
+                                "y": y,
+                                "width": w,
+                                "height": h
+                            }
+                        ))
+                        
+                        signature_counter += 1
+                
                     # Save annotated page only if valid signatures were found
                     if valid_signatures > 0:
                         page_filename = f"{session_id}_page_{page_num}.png"
