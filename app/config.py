@@ -37,18 +37,15 @@ class Settings(BaseSettings):
     DEFAULT_GRID_SIZE: int = 5
     
     # Detection defaults
-    DETECTION_DEFAULTS: Dict[str, Any] = {
-        "min_area": 500,
-        "complexity_threshold": 20.0,
-        "gaussian_blur_kernel": (5, 5),
-        "gaussian_blur_sigma": 0,
-        "adaptive_block_size": 11,
-        "adaptive_c": 2,
-        "contour_approx_factor": 0.02,
-        "padding": 10,
-        "aspect_ratio_min": 0.5,
-        "aspect_ratio_max": 5.0
-    }
+    MIN_AREA: int = 500
+    COMPLEXITY_THRESHOLD: float = 20.0
+    GAUSSIAN_BLUR_KERNEL: int = 5
+    ADAPTIVE_BLOCK_SIZE: int = 11
+    ADAPTIVE_C: int = 2
+    CONTOUR_APPROX_FACTOR: float = 0.02
+    PADDING: int = 10
+    ASPECT_RATIO_MIN: float = 0.5
+    ASPECT_RATIO_MAX: float = 5.0
     
     # Comparison defaults
     COMPARISON_DEFAULTS: Dict[str, Any] = {
