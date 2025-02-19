@@ -163,26 +163,19 @@ class DocumentPreprocessor:
         # Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
-        # Apply smaller Gaussian blur for better detail retention
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        # Apply minimal Gaussian blur to preserve details
+        blurred = cv2.GaussianBlur(gray, (3, 3), 0)
         
-        # Apply adaptive thresholding instead of Otsu
-        thresh = cv2.adaptiveThreshold(
-            blurred,
-            255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY_INV,
-            11,
-            2
-        )
+        # Apply Otsu's thresholding for better separation
+        _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         
-        # Noise removal
-        noise_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, noise_kernel, iterations=2)
+        # Minimal noise removal to preserve signature details
+        noise_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+        opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, noise_kernel, iterations=1)
         
-        # Close gaps
-        close_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
-        cleaned = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, close_kernel, iterations=3)
+        # Light closing to connect nearby components
+        close_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        cleaned = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, close_kernel, iterations=1)
         
         return cleaned
 
@@ -190,8 +183,8 @@ class DocumentPreprocessor:
                                 preprocessed: np.ndarray,
                                 original: np.ndarray) -> List[Tuple[int, int, int, int]]:
         """Detect potential signature regions"""
-        # Apply Canny edge detection
-        edges = cv2.Canny(preprocessed, 80, 200)
+        # Apply Canny edge detection with lower thresholds
+        edges = cv2.Canny(preprocessed, 30, 150)
         
         # Find contours on edge image
         contours = cv2.findContours(
@@ -225,11 +218,11 @@ class DocumentPreprocessor:
             solidity = area / hull_area if hull_area > 0 else 0
             complexity = peri * peri / (4 * np.pi * area) if area > 0 else 0
             
-            # Signature-specific criteria with settings-based thresholds
-            if (complexity > settings.COMPLEXITY_THRESHOLD and
-                settings.ASPECT_RATIO_MIN < aspect_ratio < settings.ASPECT_RATIO_MAX and
-                0.05 < extent < 0.85 and  # Density range
-                0.1 < solidity < 0.98):  # Solidity range
+            # More lenient signature criteria
+            if (complexity > 5 and  # Lower complexity threshold
+                0.1 < aspect_ratio < 10 and  # Wider aspect ratio range
+                0.01 < extent < 0.9 and  # More lenient density range
+                0.05 < solidity < 0.99):  # More lenient solidity range
                 
                 # Additional text filtering
                 roi = preprocessed[y:y+h, x:x+w]
