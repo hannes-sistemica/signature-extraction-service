@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  signature-service:
+    image: ghcr.io/hannes-sistemica/signature-extraction-service:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - signature_data:/app/temp_signatures
+    environment:
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  signature_data:
+    name: signature_extraction_data
