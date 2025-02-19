@@ -8,10 +8,10 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 install: ## Install production dependencies using uv
+	uv venv
 	uv pip install -r requirements.txt
 
-dev-install: ## Install development dependencies
-	uv pip install -r requirements.txt
+dev-install: install ## Install development dependencies
 	uv pip install pytest black isort mypy ruff
 
 clean: ## Clean up temporary files and directories
@@ -26,6 +26,7 @@ clean: ## Clean up temporary files and directories
 	find . -type d -name "htmlcov" -exec rm -rf {} +
 	find . -type d -name ".mypy_cache" -exec rm -rf {} +
 	rm -rf temp_signatures/
+	rm -rf .venv
 
 lint: ## Run code quality checks
 	black app/
@@ -34,10 +35,10 @@ lint: ## Run code quality checks
 	ruff check app/
 
 test: ## Run tests
-	pytest
+	uv pytest
 
 run: ## Run the FastAPI application locally
-	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 docker-build: ## Build Docker image
 	docker build -t signature-extraction-service .
