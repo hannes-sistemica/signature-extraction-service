@@ -192,8 +192,9 @@ async def process_pdf(pdf_content: bytes, session_id: str):
         extracted_signatures = []
         
         for page_num, image in enumerate(images, 1):
-            # Convert PIL Image to OpenCV format
-            cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+            # Convert PIL Image to OpenCV format directly
+            cv_image = np.array(image)
+            cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
             
             # Preprocess and detect signatures
             preprocessed = preprocess_image(image)
