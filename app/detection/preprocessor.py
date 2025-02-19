@@ -303,6 +303,8 @@ class DocumentPreprocessor:
             
             # Add valid regions to results and check if we should continue
             if signature_regions:
+                # Sort regions by x coordinate to maintain left-to-right order
+                signature_regions.sort(key=lambda r: r[0])
                 all_regions.extend(signature_regions)
                 logger.info(f"Found {len(signature_regions)} signatures in pass {pass_num + 1}")
                 if found_valid_signature:
