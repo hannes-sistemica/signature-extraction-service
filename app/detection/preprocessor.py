@@ -226,7 +226,7 @@ class DocumentPreprocessor:
         for pass_num in range(settings.MAX_DETECTION_PASSES):
             logger.info(f"Detection pass {pass_num + 1}")
             
-            # Save debug image of current state
+            # Save debug image before processing
             debug_prefix = f"page_{self.current_page:02d}"
             cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_working_image_pass_{pass_num}.png"), working_image)
             
@@ -243,6 +243,7 @@ class DocumentPreprocessor:
             
             # Process regions for this pass
             signature_regions = []
+            found_valid_signature = False
         
         signature_regions = []
         
@@ -320,23 +321,27 @@ class DocumentPreprocessor:
                             h = min(cleaned.shape[0] - y, h + 10)
                             signature_regions.append((x, y, w, h))
                             
-                            # Mask out this signature in the working image
-                            mask_padding = 5
+                            # Mask out this signature in the working image with white
+                            mask_padding = 10
                             mask_x = max(0, x - mask_padding)
                             mask_y = max(0, y - mask_padding)
                             mask_w = min(working_image.shape[1] - mask_x, w + 2 * mask_padding)
                             mask_h = min(working_image.shape[0] - mask_y, h + 2 * mask_padding)
                             
-                            working_image[mask_y:mask_y+mask_h, mask_x:mask_x+mask_w] = 0
+                            working_image[mask_y:mask_y+mask_h, mask_x:mask_x+mask_w] = 255
+                            found_valid_signature = True
                             
                             # Save debug image after masking
                             debug_prefix = f"page_{self.current_page:02d}"
-                            cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_masked_{x}_{y}.png"), working_image)
+                            cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_masked_pass_{pass_num}_{x}_{y}.png"), working_image)
             
-            # Add valid regions to results
+            # Add valid regions to results and check if we should continue
             if signature_regions:
                 all_regions.extend(signature_regions)
                 logger.info(f"Found {len(signature_regions)} signatures in pass {pass_num + 1}")
+                if not found_valid_signature:
+                    logger.info("No valid signatures found in this pass, stopping detection")
+                    break
             else:
                 logger.info(f"No new signatures found in pass {pass_num + 1}")
                 break
