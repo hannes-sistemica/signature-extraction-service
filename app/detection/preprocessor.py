@@ -181,9 +181,30 @@ class DocumentPreprocessor:
                                 preprocessed: np.ndarray,
                                 original: np.ndarray) -> List[Tuple[int, int, int, int]]:
         """Detect potential signature regions"""
-        # Find contours
+        # Find horizontal and vertical lines
+        horizontal = preprocessed.copy()
+        vertical = preprocessed.copy()
+        
+        # Adjust these values based on your image size
+        h_size = horizontal.shape[1] // 30
+        v_size = vertical.shape[0] // 30
+        
+        h_structure = cv2.getStructuringElement(cv2.MORPH_RECT, (h_size, 1))
+        v_structure = cv2.getStructuringElement(cv2.MORPH_RECT, (1, v_size))
+        
+        # Remove horizontal and vertical lines
+        horizontal = cv2.erode(horizontal, h_structure)
+        horizontal = cv2.dilate(horizontal, h_structure)
+        vertical = cv2.erode(vertical, v_structure)
+        vertical = cv2.dilate(vertical, v_structure)
+        
+        # Remove lines from original
+        mask = cv2.bitwise_or(horizontal, vertical)
+        cleaned = cv2.bitwise_xor(preprocessed, mask)
+        
+        # Find contours in cleaned image
         contours, _ = cv2.findContours(
-            preprocessed, 
+            cleaned, 
             cv2.RETR_EXTERNAL, 
             cv2.CHAIN_APPROX_SIMPLE
         )
@@ -203,8 +224,16 @@ class DocumentPreprocessor:
                 x, y, w, h = cv2.boundingRect(contour)
                 aspect_ratio = w / h
                 
-                if 0.5 < aspect_ratio < 5:
-                    signature_regions.append((x, y, w, h))
+                # Check if region is isolated (not part of text block)
+                roi = cleaned[max(0, y-20):min(cleaned.shape[0], y+h+20),
+                            max(0, x-20):min(cleaned.shape[1], x+w+20)]
+                
+                if roi.size > 0:
+                    text_density = np.sum(roi > 0) / roi.size
+                    
+                    # Signatures typically have lower density than text blocks
+                    if text_density < 0.2 and 0.5 < aspect_ratio < 5:
+                        signature_regions.append((x, y, w, h))
         
         return signature_regions
 
