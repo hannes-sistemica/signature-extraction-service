@@ -39,18 +39,27 @@ docker run -p 8000:8000 signature-extraction-service
 
 #### Prerequisites
 
-On macOS, you'll need to install some system dependencies first:
-
+The service requires Python 3.11. You can check your Python version with:
 ```bash
-# Install required system libraries for Pillow and PDF processing
-brew install libjpeg zlib poppler tesseract
+python3 --version
+```
+
+If you need to install or update Python, on macOS use:
+```bash
+brew install python@3.11
+```
+
+You'll also need some system dependencies:
+```bash
+# Install required system libraries for PDF processing
+brew install poppler tesseract
 ```
 
 These dependencies are required for:
-- `libjpeg`: Image processing with Pillow
-- `zlib`: Compression support for Pillow
 - `poppler`: PDF to image conversion (used by pdf2image)
 - `tesseract`: OCR capabilities (optional, for future use)
+
+Note: The service is tested with Python 3.11.7. While other 3.11.x versions might work, they are not officially supported.
 
 #### Installation
 
