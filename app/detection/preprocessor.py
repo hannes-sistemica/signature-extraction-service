@@ -215,19 +215,16 @@ class DocumentPreprocessor:
         cleaned = cv2.bitwise_xor(preprocessed, mask)
         cv2.imwrite(str(Path(settings.TEMP_DIR) / "debug_05_no_lines.png"), cleaned)
         
-        # Multiple passes to find all signatures
+        # Find all signatures with masking
         all_regions = []
-        detection_mask = np.zeros_like(cleaned)
+        working_image = cleaned.copy()
         
         for pass_num in range(settings.MAX_DETECTION_PASSES):
             logger.info(f"Detection pass {pass_num + 1}")
             
-            # Apply existing mask
-            current_image = cv2.bitwise_and(cleaned, cleaned, mask=cv2.bitwise_not(detection_mask))
-            
-            # Find contours in masked image
+            # Find contours in current image
             contours, _ = cv2.findContours(
-                current_image, 
+                working_image, 
                 cv2.RETR_EXTERNAL, 
                 cv2.CHAIN_APPROX_SIMPLE
             )
@@ -235,6 +232,9 @@ class DocumentPreprocessor:
             if not contours:  # No more regions found
                 logger.info(f"No more regions found after pass {pass_num + 1}")
                 break
+            
+            # Save debug image of current state
+            cv2.imwrite(str(Path(settings.TEMP_DIR) / f"debug_working_image_pass_{pass_num}.png"), working_image)
         
         signature_regions = []
         
@@ -277,20 +277,49 @@ class DocumentPreprocessor:
                         h = min(cleaned.shape[0] - y, h + 10)
                         signature_regions.append((x, y, w, h))
         
-            # Add found regions to results
-            all_regions.extend(signature_regions)
-            
-            # Update detection mask with found regions
-            for x, y, w, h in signature_regions:
-                # Add padding to mask to prevent overlapping detections
-                pad = 5
-                x_start = max(0, x - pad)
-                y_start = max(0, y - pad)
-                x_end = min(cleaned.shape[1], x + w + pad)
-                y_end = min(cleaned.shape[0], y + h + pad)
-                detection_mask[y_start:y_end, x_start:x_end] = 255
+            # Process found regions
+            signature_regions = []
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                perimeter = cv2.arcLength(contour, True)
                 
-            if not signature_regions:  # No new signatures found
+                if area < 2000:  # Increased minimum area
+                    continue
+                    
+                complexity = perimeter * perimeter / (4 * np.pi * area)
+                
+                if 20 < complexity < 100:  # Tighter complexity range
+                    x, y, w, h = cv2.boundingRect(contour)
+                    aspect_ratio = w / h
+                    
+                    # Check larger surrounding area for isolation
+                    padding = 50
+                    roi = cleaned[max(0, y-padding):min(cleaned.shape[0], y+h+padding),
+                                max(0, x-padding):min(cleaned.shape[1], x+w+padding)]
+                    
+                    if roi.size > 0:
+                        text_density = np.sum(roi > 0) / roi.size
+                        
+                        # More strict criteria for signatures
+                        if (0.05 < text_density < 0.3 and  # Tighter density range
+                            1.0 < aspect_ratio < 6.0 and  # More typical signature ratio
+                            w > 100 and h > 30):  # Minimum size requirements
+                            
+                            # Expand bounding box slightly
+                            x = max(0, x - 10)
+                            y = max(0, y - 5)
+                            w = min(cleaned.shape[1] - x, w + 20)
+                            h = min(cleaned.shape[0] - y, h + 10)
+                            signature_regions.append((x, y, w, h))
+                            
+                            # Mask out this signature in the working image
+                            cv2.rectangle(working_image, (x, y), (x + w, y + h), 0, -1)
+            
+            # Add valid regions to results
+            if signature_regions:
+                all_regions.extend(signature_regions)
+                logger.info(f"Found {len(signature_regions)} signatures in pass {pass_num + 1}")
+            else:
                 logger.info(f"No new signatures found in pass {pass_num + 1}")
                 break
         
