@@ -27,13 +27,13 @@ class DocumentPreprocessor:
                              is_pdf: bool) -> ProcessingResult:
         """Process document and detect signatures"""
         try:
-            logger.info(f"Starting document processing for session {session_id}")
+            logger.info(f"Processing document [session={session_id}]")
             if is_pdf:
-                logger.info("Converting PDF to images")
+                logger.info("Converting PDF document to images")
                 images = self._pdf_to_images(content)
-                logger.info(f"Converted PDF to {len(images)} images")
+                logger.info(f"PDF conversion complete [pages={len(images)}]")
             else:
-                logger.info("Processing single image")
+                logger.info("Processing single image document")
                 images = [self._bytes_to_image(content)]
             
             results = []
@@ -41,16 +41,16 @@ class DocumentPreprocessor:
             annotated_pages = []
             extracted_signatures = []
             
-            logger.info(f"Processing {len(images)} pages")
+            logger.info(f"Starting page processing [total={len(images)}]")
             for page_num, image in enumerate(images, 1):
-                logger.info(f"Processing page {page_num}")
+                logger.info(f"Processing page [number={page_num}]")
                 # Process each page
-                logger.info("Preprocessing image")
+                logger.info(f"Starting image preprocessing [page={page_num}]")
                 preprocessed = self._preprocess_image(image)
                 
-                logger.info("Detecting signature regions")
+                logger.info(f"Detecting signature regions [page={page_num}]")
                 regions = self._detect_signature_regions(preprocessed, image)
-                logger.info(f"Found {len(regions)} potential signature regions")
+                logger.info(f"Signature detection complete [regions={len(regions)}]")
                 
                 if regions:
                     # Create annotated image
