@@ -226,6 +226,10 @@ class DocumentPreprocessor:
         for pass_num in range(settings.MAX_DETECTION_PASSES):
             logger.info(f"Detection pass {pass_num + 1}")
             
+            # Save debug image of current state
+            debug_prefix = f"page_{self.current_page:02d}"
+            cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_working_image_pass_{pass_num}.png"), working_image)
+            
             # Find contours in current image
             contours, _ = cv2.findContours(
                 working_image, 
@@ -237,9 +241,8 @@ class DocumentPreprocessor:
                 logger.info(f"No more regions found after pass {pass_num + 1}")
                 break
             
-            # Save debug image of current state with page number
-            debug_prefix = f"page_{self.current_page:02d}"
-            cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_working_image_pass_{pass_num}.png"), working_image)
+            # Process regions for this pass
+            signature_regions = []
         
         signature_regions = []
         
@@ -283,8 +286,7 @@ class DocumentPreprocessor:
                         h = min(cleaned.shape[0] - y, h + 10)
                         signature_regions.append((x, y, w, h))
         
-            # Process found regions
-            signature_regions = []
+            # Process regions for this pass
             for contour in contours:
                 area = cv2.contourArea(contour)
                 perimeter = cv2.arcLength(contour, True)
@@ -318,15 +320,18 @@ class DocumentPreprocessor:
                             h = min(cleaned.shape[0] - y, h + 10)
                             signature_regions.append((x, y, w, h))
                             
-                            # Mask out this signature in the working image with white
-                            cv2.rectangle(working_image, (x-5, y-5), (x + w + 5, y + h + 5), 255, -1)
+                            # Mask out this signature in the working image
+                            mask_padding = 5
+                            mask_x = max(0, x - mask_padding)
+                            mask_y = max(0, y - mask_padding)
+                            mask_w = min(working_image.shape[1] - mask_x, w + 2 * mask_padding)
+                            mask_h = min(working_image.shape[0] - mask_y, h + 2 * mask_padding)
                             
-                            # Save debug image after masking with page number
+                            working_image[mask_y:mask_y+mask_h, mask_x:mask_x+mask_w] = 0
+                            
+                            # Save debug image after masking
                             debug_prefix = f"page_{self.current_page:02d}"
                             cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_masked_{x}_{y}.png"), working_image)
-                            
-                            # Also mask out in cleaned image to prevent re-detection
-                            cv2.rectangle(cleaned, (x-5, y-5), (x + w + 5, y + h + 5), 0, -1)
             
             # Add valid regions to results
             if signature_regions:
