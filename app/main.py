@@ -38,12 +38,16 @@ app.add_middleware(
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
+    format='INFO:     %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout)
     ]
 )
+
+# Configure uvicorn logger to use same format
+uvicorn_logger = logging.getLogger("uvicorn")
+for handler in uvicorn_logger.handlers:
+    handler.setFormatter(logging.Formatter('INFO:     %(message)s'))
 
 logger = logging.getLogger(__name__)
 
