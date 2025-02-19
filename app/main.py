@@ -183,6 +183,40 @@ async def delete_stored_signature(signature_id: str):
     
     return {"message": "Signature deleted successfully"}
 
+@app.get("/files/{filename}",
+    summary="Retrieve processed file",
+    description="""
+    Retrieve a processed file, which can be either:
+    - An annotated page showing detected signatures
+    - An extracted signature image
+    
+    The filename should be obtained from the response of the /signatures/detect/ endpoint.
+    """,
+    responses={
+        200: {
+            "content": {"image/png": {}},
+            "description": "The requested image file"
+        },
+        404: {
+            "description": "File not found"
+        }
+    }
+)
+async def get_file(filename: str):
+    """Retrieve a processed file (annotated page or extracted signature)"""
+    file_path = Path("temp_signatures") / filename
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=404, 
+            detail="File not found"
+        )
+    
+    return FileResponse(
+        str(file_path),
+        media_type="image/png",
+        filename=filename
+    )
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
