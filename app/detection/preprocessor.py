@@ -215,12 +215,17 @@ class DocumentPreprocessor:
         cleaned = cv2.bitwise_xor(preprocessed, mask)
         cv2.imwrite(str(Path(settings.TEMP_DIR) / "debug_05_no_lines.png"), cleaned)
         
-        # Find contours in cleaned image
-        contours, _ = cv2.findContours(
-            cleaned, 
-            cv2.RETR_EXTERNAL, 
-            cv2.CHAIN_APPROX_SIMPLE
-        )
+        # First pass: find and mask detected signatures
+        all_regions = []
+        for pass_num in range(2):  # Do two passes
+            logger.info(f"Detection pass {pass_num + 1}")
+            
+            # Find contours in cleaned image
+            contours, _ = cv2.findContours(
+                cleaned, 
+                cv2.RETR_EXTERNAL, 
+                cv2.CHAIN_APPROX_SIMPLE
+            )
         
         signature_regions = []
         
@@ -228,12 +233,12 @@ class DocumentPreprocessor:
             area = cv2.contourArea(contour)
             perimeter = cv2.arcLength(contour, True)
             
-            if area < 500:
+            if area < settings.MIN_AREA:
                 continue
                 
             complexity = perimeter * perimeter / (4 * np.pi * area)
             
-            if complexity > 20:
+            if complexity > settings.COMPLEXITY_THRESHOLD:
                 x, y, w, h = cv2.boundingRect(contour)
                 aspect_ratio = w / h
                 
@@ -252,10 +257,24 @@ class DocumentPreprocessor:
                     cv2.imwrite(str(Path(settings.TEMP_DIR) / f"debug_06_region_{x}_{y}.png"), debug_roi)
                     
                     # Signatures typically have lower density than text blocks
-                    if text_density < 0.2 and 0.5 < aspect_ratio < 5:
+                    if (text_density < settings.DENSITY_MAX and 
+                        settings.ASPECT_RATIO_MIN < aspect_ratio < settings.ASPECT_RATIO_MAX):
+                        # Expand bounding box slightly
+                        x = max(0, x - 10)
+                        y = max(0, y - 5)
+                        w = min(cleaned.shape[1] - x, w + 20)
+                        h = min(cleaned.shape[0] - y, h + 10)
                         signature_regions.append((x, y, w, h))
         
-        return signature_regions
+            # Add found regions to results
+            all_regions.extend(signature_regions)
+            
+            # Mask out found regions for next pass
+            if pass_num < 1:  # Only mask after first pass
+                for x, y, w, h in signature_regions:
+                    cleaned[y:y+h, x:x+w] = 0
+        
+        return all_regions
 
     def _validate_signature_region(self,
                                  image: np.ndarray,
