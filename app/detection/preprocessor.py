@@ -163,11 +163,18 @@ class DocumentPreprocessor:
         # Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
-        # Apply Gaussian blur with larger kernel
-        blurred = cv2.GaussianBlur(gray, (25, 25), 0)
+        # Apply smaller Gaussian blur for better detail retention
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
         
-        # Apply Otsu's thresholding
-        _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        # Apply adaptive thresholding instead of Otsu
+        thresh = cv2.adaptiveThreshold(
+            blurred,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY_INV,
+            11,
+            2
+        )
         
         # Noise removal
         noise_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
@@ -218,11 +225,11 @@ class DocumentPreprocessor:
             solidity = area / hull_area if hull_area > 0 else 0
             complexity = peri * peri / (4 * np.pi * area) if area > 0 else 0
             
-            # Signature-specific criteria
-            if (complexity > settings.COMPLEXITY_THRESHOLD and  # Use environment setting
-                0.2 < solidity < 0.95 and  # Not too solid (text) or sparse
-                0.1 < extent < 0.7 and  # Not too dense like printed text
-                0.5 < aspect_ratio < 5):  # Reasonable aspect ratio
+            # Signature-specific criteria with more lenient thresholds
+            if (complexity > 10 and  # Lower complexity threshold
+                0.1 < solidity < 0.98 and  # More lenient solidity range
+                0.05 < extent < 0.85 and  # More lenient density range
+                0.2 < aspect_ratio < 8):  # More lenient aspect ratio
                 
                 # Additional text filtering
                 roi = preprocessed[y:y+h, x:x+w]
@@ -233,7 +240,7 @@ class DocumentPreprocessor:
                 h_std = np.std(horizontal_projection)
                 v_std = np.std(vertical_projection)
                 
-                if h_std > 1000 and v_std > 1000:  # High variation typical of signatures
+                if h_std > 500 and v_std > 500:  # Lower threshold for variation
                     signature_regions.append((x, y, w, h))
         
         return signature_regions
