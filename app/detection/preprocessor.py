@@ -163,22 +163,17 @@ class DocumentPreprocessor:
         # Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
-        # Normalize image
-        normalized = cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX)
-        
         # Apply adaptive thresholding
         thresh = cv2.adaptiveThreshold(
-            normalized,
-            255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY_INV,
-            11,
-            2
+            gray, 255, 
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+            cv2.THRESH_BINARY_INV, 
+            11, 2
         )
         
-        # Remove small noise
-        kernel = np.ones((2,2), np.uint8)
-        cleaned = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
+        # Remove noise
+        kernel = np.ones((3,3), np.uint8)
+        cleaned = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
         
         return cleaned
 
@@ -186,57 +181,29 @@ class DocumentPreprocessor:
                                 preprocessed: np.ndarray,
                                 original: np.ndarray) -> List[Tuple[int, int, int, int]]:
         """Detect potential signature regions"""
-        # Apply Canny edge detection with lower thresholds
-        edges = cv2.Canny(preprocessed, 30, 150)
-        
-        # Find contours on edge image
-        contours = cv2.findContours(
-            edges.copy(),
-            cv2.RETR_LIST,  # Changed to LIST to find all contours
+        # Find contours
+        contours, _ = cv2.findContours(
+            preprocessed, 
+            cv2.RETR_EXTERNAL, 
             cv2.CHAIN_APPROX_SIMPLE
         )
-        contours = imutils.grab_contours(contours)
-        
-        # Sort contours by area, largest first
-        contours = sorted(contours, key=cv2.contourArea, reverse=True)
         
         signature_regions = []
         
         for contour in contours:
             area = cv2.contourArea(contour)
-            if area < settings.MIN_AREA:  # Use environment setting
+            perimeter = cv2.arcLength(contour, True)
+            
+            if area < 500:
                 continue
                 
-            # Calculate perimeter and shape metrics
-            peri = cv2.arcLength(contour, True)
-            hull = cv2.convexHull(contour)
-            hull_area = cv2.contourArea(hull)
+            complexity = perimeter * perimeter / (4 * np.pi * area)
             
-            # Get bounding rectangle
-            x, y, w, h = cv2.boundingRect(contour)
-            
-            # Calculate shape characteristics
-            aspect_ratio = w / h
-            extent = area / (w * h)  # Area to bounding box ratio
-            solidity = area / hull_area if hull_area > 0 else 0
-            complexity = peri * peri / (4 * np.pi * area) if area > 0 else 0
-            
-            # Signature-specific criteria
-            if (complexity > 3 and  # Very low complexity threshold for handwriting
-                0.2 < aspect_ratio < 15 and  # Wide aspect ratio for signatures
-                0.01 < extent < 0.95 and  # Very lenient density
-                0.05 < solidity < 0.99 and  # Allow most shapes
-                area > 1000):  # Minimum area to avoid small noise
+            if complexity > 20:
+                x, y, w, h = cv2.boundingRect(contour)
+                aspect_ratio = w / h
                 
-                # Check for signature-like characteristics
-                roi = preprocessed[y:y+h, x:x+w]
-                
-                # Calculate stroke width variation
-                distances = cv2.distanceTransform(roi, cv2.DIST_L2, 3)
-                stroke_std = np.std(distances[distances > 0])
-                
-                # Check for non-uniform strokes (typical in signatures)
-                if stroke_std > 2.0:
+                if 0.5 < aspect_ratio < 5:
                     signature_regions.append((x, y, w, h))
         
         return signature_regions
