@@ -225,11 +225,11 @@ class DocumentPreprocessor:
             solidity = area / hull_area if hull_area > 0 else 0
             complexity = peri * peri / (4 * np.pi * area) if area > 0 else 0
             
-            # Signature-specific criteria with more lenient thresholds
-            if (complexity > 10 and  # Lower complexity threshold
-                0.1 < solidity < 0.98 and  # More lenient solidity range
-                0.05 < extent < 0.85 and  # More lenient density range
-                0.2 < aspect_ratio < 8):  # More lenient aspect ratio
+            # Signature-specific criteria with settings-based thresholds
+            if (complexity > settings.COMPLEXITY_THRESHOLD and
+                settings.ASPECT_RATIO_MIN < aspect_ratio < settings.ASPECT_RATIO_MAX and
+                0.05 < extent < 0.85 and  # Density range
+                0.1 < solidity < 0.98):  # Solidity range
                 
                 # Additional text filtering
                 roi = preprocessed[y:y+h, x:x+w]
@@ -317,7 +317,7 @@ class DocumentPreprocessor:
                           region: Tuple[int, int, int, int]) -> np.ndarray:
         """Extract signature region with padding"""
         x, y, w, h = region
-        padding = self.params.padding
+        padding = settings.PADDING
         
         # Add padding with bounds checking
         x_start = max(0, x - padding)

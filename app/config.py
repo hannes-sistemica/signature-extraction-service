@@ -38,14 +38,18 @@ class Settings(BaseSettings):
     
     # Detection defaults
     MIN_AREA: int = 500
-    COMPLEXITY_THRESHOLD: float = 20.0
+    COMPLEXITY_THRESHOLD: float = 10.0  # Adjusted for better detection
     GAUSSIAN_BLUR_KERNEL: int = 5
     ADAPTIVE_BLOCK_SIZE: int = 11
     ADAPTIVE_C: int = 2
     CONTOUR_APPROX_FACTOR: float = 0.02
     PADDING: int = 10
-    ASPECT_RATIO_MIN: float = 0.5
-    ASPECT_RATIO_MAX: float = 5.0
+    ASPECT_RATIO_MIN: float = 0.2  # More lenient
+    ASPECT_RATIO_MAX: float = 8.0  # More lenient
+    DENSITY_MIN: float = 0.05
+    DENSITY_MAX: float = 0.85
+    SOLIDITY_MIN: float = 0.1
+    SOLIDITY_MAX: float = 0.98
     
     # Comparison defaults
     COMPARISON_DEFAULTS: Dict[str, Any] = {
