@@ -163,26 +163,19 @@ class DocumentPreprocessor:
         # Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
-        # Apply Gaussian blur
-        blurred = cv2.GaussianBlur(
-            gray,
-            (5, 5),  # Fixed kernel size
-            0  # Auto-compute sigma
-        )
+        # Apply Gaussian blur with larger kernel
+        blurred = cv2.GaussianBlur(gray, (25, 25), 0)
         
-        # Apply adaptive thresholding using environment settings
-        thresh = cv2.adaptiveThreshold(
-            blurred,
-            255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY_INV,
-            settings.ADAPTIVE_BLOCK_SIZE,
-            11  # Default C value
-        )
+        # Apply Otsu's thresholding
+        _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         
         # Noise removal
-        kernel = np.ones((3,3), np.uint8)
-        cleaned = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+        noise_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, noise_kernel, iterations=2)
+        
+        # Close gaps
+        close_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+        cleaned = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, close_kernel, iterations=3)
         
         return cleaned
 
@@ -190,13 +183,19 @@ class DocumentPreprocessor:
                                 preprocessed: np.ndarray,
                                 original: np.ndarray) -> List[Tuple[int, int, int, int]]:
         """Detect potential signature regions"""
-        # Find contours
+        # Apply Canny edge detection
+        edges = cv2.Canny(preprocessed, 80, 200)
+        
+        # Find contours on edge image
         contours = cv2.findContours(
-            preprocessed,
-            cv2.RETR_EXTERNAL,  # Changed to EXTERNAL to avoid nested contours
+            edges.copy(),
+            cv2.RETR_LIST,  # Changed to LIST to find all contours
             cv2.CHAIN_APPROX_SIMPLE
         )
         contours = imutils.grab_contours(contours)
+        
+        # Sort contours by area, largest first
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
         
         signature_regions = []
         
