@@ -328,26 +328,7 @@ class DocumentPreprocessor:
         # Log validation steps
         logger.info(f"Validating region: x={x}, y={y}, w={w}, h={h}")
         
-        # Calculate basic metrics
-        contours, _ = cv2.findContours(roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if not contours:
-            logger.info("Region rejected: No contours found")
-            return False
-            
-        # Get the largest contour
-        main_contour = max(contours, key=cv2.contourArea)
-        area = cv2.contourArea(main_contour)
-        perimeter = cv2.arcLength(main_contour, True)
-        hull = cv2.convexHull(main_contour)
-        hull_area = cv2.contourArea(hull)
-        
-        # Calculate shape complexity metrics
-        complexity = perimeter * perimeter / (4 * np.pi * area) if area > 0 else 0
-        solidity = area / hull_area if hull_area > 0 else 0
-        
-        logger.info(f"Shape complexity: {complexity:.2f}, Solidity: {solidity:.2f}")
-        
-        # Check minimum size
+        # Basic size checks
         if w < 30 or h < 15:
             logger.info("Region rejected: Too small")
             return False
@@ -358,28 +339,13 @@ class DocumentPreprocessor:
             logger.info(f"Region rejected: Bad aspect ratio ({aspect_ratio})")
             return False
         
-        # Check ink density with more tolerance for signatures
+        # Check ink density
         ink_density = np.sum(roi > 0) / (w * h)
         logger.info(f"Ink density: {ink_density:.2f}")
-        if ink_density < 0.02 or ink_density > 0.7:  # More tolerant upper bound
-            logger.info("Region rejected: Invalid ink density")
-            return False
-            
-        # Check shape complexity (signatures are typically complex)
-        if complexity < 15 or complexity > 100:  # Adjusted thresholds
-            logger.info("Region rejected: Invalid shape complexity")
-            return False
-            
-        # Check solidity (signatures typically have moderate solidity)
-        if solidity < 0.1 or solidity > 0.95:
-            logger.info("Region rejected: Invalid solidity")
-            return False
         
-        # Check for too many straight lines
-        edges = cv2.Canny(roi, 50, 150)
-        lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength=w/2)
-        if lines is not None and len(lines) > 5:
-            logger.info("Region rejected: Too many straight lines")
+        # More lenient density check for signatures
+        if ink_density < 0.01 or ink_density > 0.9:
+            logger.info("Region rejected: Invalid ink density")
             return False
         
         logger.info("Region validated as signature")
