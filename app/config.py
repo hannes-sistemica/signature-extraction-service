@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["*"]
     
     # Feature extraction defaults
-    DEFAULT_IMAGE_SIZE: tuple = (300, 150)
+    DEFAULT_IMAGE_SIZE: tuple = (1654, 2340)  # A4 size at 200 DPI
     DEFAULT_GRID_SIZE: int = 5
     
     # Detection defaults

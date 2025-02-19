@@ -134,11 +134,10 @@ class DocumentPreprocessor:
             with open(pdf_path, "wb") as f:
                 f.write(content)
             
-            # Convert PDF pages to images
+            # Convert PDF pages to images at higher resolution
             pil_images = pdf2image.convert_from_path(
                 str(pdf_path),
-                dpi=200,
-                size=settings.DEFAULT_IMAGE_SIZE,
+                dpi=300,  # Higher DPI for better quality
                 first_page=1,
                 last_page=settings.MAX_PDF_PAGES
             )
