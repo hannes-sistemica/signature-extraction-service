@@ -238,31 +238,41 @@ class DocumentPreprocessor:
         x, y, w, h = region
         roi = image[y:y+h, x:x+w]
         
-        # Check minimum size
-        if w < 50 or h < 20:
+        # Log validation steps
+        logger.info(f"Validating region: x={x}, y={y}, w={w}, h={h}")
+        
+        # Check minimum size (more lenient)
+        if w < 30 or h < 15:
+            logger.info("Region rejected: Too small")
             return False
             
-        # Check aspect ratio
+        # Check aspect ratio (more lenient)
         aspect_ratio = w / h
-        if aspect_ratio < 0.5 or aspect_ratio > 5:
+        if aspect_ratio < 0.3 or aspect_ratio > 7:
+            logger.info(f"Region rejected: Bad aspect ratio ({aspect_ratio})")
             return False
         
-        # Check ink density
+        # Check ink density (more lenient)
         ink_density = np.sum(roi > 0) / (w * h)
-        if ink_density < 0.05 or ink_density > 0.3:
+        logger.info(f"Ink density: {ink_density}")
+        if ink_density < 0.02 or ink_density > 0.4:
+            logger.info("Region rejected: Invalid ink density")
             return False
         
-        # Check for straight lines (usually not signatures)
+        # Check for straight lines (more lenient)
         edges = cv2.Canny(roi, 50, 150)
-        lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength=w/3)
-        if lines is not None and len(lines) > 3:
+        lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength=w/2)
+        if lines is not None and len(lines) > 5:
+            logger.info("Region rejected: Too many straight lines")
             return False
             
-        # Check for too simple shapes (rectangles, circles)
+        # Check for complexity (more lenient)
         contours, _ = cv2.findContours(roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if len(contours) < 2:  # Signatures typically have multiple components
+        if len(contours) < 1:
+            logger.info("Region rejected: Too simple shape")
             return False
         
+        logger.info("Region validated as signature")
         return True
 
     def _extract_signature(self,
