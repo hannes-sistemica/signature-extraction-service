@@ -52,13 +52,17 @@ class DocumentPreprocessor:
                 regions = self._detect_signature_regions(preprocessed, image)
                 logger.info(f"Signature detection complete [regions={len(regions)}]")
                 
+                # Create annotated image only if signatures are found
                 if regions:
-                    # Create annotated image
                     annotated = image.copy()
+                    valid_signatures = 0
                     
                     for region in regions:
                         # Extract and validate signature
-                        if self._validate_signature_region(preprocessed, region):
+                        if not self._validate_signature_region(preprocessed, region):
+                            continue
+                            
+                        valid_signatures += 1
                             x, y, w, h = region
                             
                             # Draw rectangle and ID
@@ -97,11 +101,12 @@ class DocumentPreprocessor:
                             
                             signature_counter += 1
                     
-                    # Save annotated page
-                    page_filename = f"{session_id}_page_{page_num}.png"
-                    page_path = Path(settings.TEMP_DIR) / page_filename
-                    cv2.imwrite(str(page_path), annotated)
-                    annotated_pages.append(page_filename)
+                    # Save annotated page only if valid signatures were found
+                    if valid_signatures > 0:
+                        page_filename = f"{session_id}_page_{page_num}.png"
+                        page_path = Path(settings.TEMP_DIR) / page_filename
+                        cv2.imwrite(str(page_path), annotated)
+                        annotated_pages.append(page_filename)
             
             return ProcessingResult(
                 total_signatures=signature_counter - 1,
@@ -233,15 +238,29 @@ class DocumentPreprocessor:
         x, y, w, h = region
         roi = image[y:y+h, x:x+w]
         
+        # Check minimum size
+        if w < 50 or h < 20:
+            return False
+            
+        # Check aspect ratio
+        aspect_ratio = w / h
+        if aspect_ratio < 0.5 or aspect_ratio > 5:
+            return False
+        
         # Check ink density
         ink_density = np.sum(roi > 0) / (w * h)
-        if ink_density < 0.01 or ink_density > 0.3:
+        if ink_density < 0.05 or ink_density > 0.3:
             return False
         
         # Check for straight lines (usually not signatures)
         edges = cv2.Canny(roi, 50, 150)
-        lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength=w/2)
-        if lines is not None and len(lines) > 2:
+        lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength=w/3)
+        if lines is not None and len(lines) > 3:
+            return False
+            
+        # Check for too simple shapes (rectangles, circles)
+        contours, _ = cv2.findContours(roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if len(contours) < 2:  # Signatures typically have multiple components
             return False
         
         return True
