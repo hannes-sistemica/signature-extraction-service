@@ -138,12 +138,18 @@ class DocumentPreprocessor:
             pil_images = pdf2image.convert_from_path(
                 str(pdf_path),
                 dpi=200,
-                size=settings.DEFAULT_IMAGE_SIZE
+                size=settings.DEFAULT_IMAGE_SIZE,
+                first_page=1,
+                last_page=settings.MAX_PDF_PAGES
             )
+            logger.info(f"Converted PDF: found {len(pil_images)} pages")
             
             # Convert PIL images to OpenCV format
-            return [cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR) 
-                for img in pil_images]
+            cv_images = []
+            for i, img in enumerate(pil_images, 1):
+                logger.info(f"Converting page {i} to OpenCV format")
+                cv_images.append(cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR))
+            return cv_images
         finally:
             # Clean up temporary PDF
             pdf_path.unlink(missing_ok=True)
