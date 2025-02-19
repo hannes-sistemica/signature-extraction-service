@@ -27,9 +27,13 @@ class DocumentPreprocessor:
                              is_pdf: bool) -> ProcessingResult:
         """Process document and detect signatures"""
         try:
+            logger.info(f"Starting document processing for session {session_id}")
             if is_pdf:
+                logger.info("Converting PDF to images")
                 images = self._pdf_to_images(content)
+                logger.info(f"Converted PDF to {len(images)} images")
             else:
+                logger.info("Processing single image")
                 images = [self._bytes_to_image(content)]
             
             results = []
@@ -37,10 +41,16 @@ class DocumentPreprocessor:
             annotated_pages = []
             extracted_signatures = []
             
+            logger.info(f"Processing {len(images)} pages")
             for page_num, image in enumerate(images, 1):
+                logger.info(f"Processing page {page_num}")
                 # Process each page
+                logger.info("Preprocessing image")
                 preprocessed = self._preprocess_image(image)
+                
+                logger.info("Detecting signature regions")
                 regions = self._detect_signature_regions(preprocessed, image)
+                logger.info(f"Found {len(regions)} potential signature regions")
                 
                 if regions:
                     # Create annotated image

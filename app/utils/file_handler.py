@@ -26,7 +26,12 @@ class FileHandler:
                                prefix: str = "",
                                max_size: Optional[int] = None) -> Path:
         """Save uploaded file to temporary directory"""
-        if max_size and await self.get_file_size(file) > max_size:
+        logger.info(f"Saving uploaded file: {file.filename}")
+        file_size = await self.get_file_size(file)
+        logger.info(f"File size: {file_size} bytes")
+        
+        if max_size and file_size > max_size:
+            logger.error(f"File size {file_size} exceeds limit of {max_size} bytes")
             raise ValueError(f"File size exceeds maximum limit of {max_size} bytes")
 
         # Create unique filename

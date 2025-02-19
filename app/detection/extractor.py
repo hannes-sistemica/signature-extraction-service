@@ -24,18 +24,24 @@ class SignatureExtractor:
         Returns dictionary of different feature types
         """
         try:
+            logger.info("Starting feature extraction")
+            
             # Convert bytes to image
+            logger.info("Converting bytes to image")
             image = self._bytes_to_image(image_data)
             
             # Preprocess image
+            logger.info("Preprocessing image for feature extraction")
             processed = self._preprocess_image(image)
             
             # Extract all feature types
+            logger.info("Extracting features")
             features = {
                 'hog': self._extract_hog_features(processed),
                 'contour': self._extract_contour_features(processed),
                 'density': self._extract_density_features(processed)
             }
+            logger.info("Feature extraction completed")
             
             return features
             
