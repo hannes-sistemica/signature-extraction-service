@@ -245,49 +245,6 @@ class DocumentPreprocessor:
             signature_regions = []
             found_valid_signature = False
         
-        signature_regions = []
-        
-        for contour in contours:
-            area = cv2.contourArea(contour)
-            perimeter = cv2.arcLength(contour, True)
-            
-            if area < 2000:  # Increased minimum area
-                continue
-                
-            complexity = perimeter * perimeter / (4 * np.pi * area)
-            
-            if 20 < complexity < 100:  # Tighter complexity range
-                x, y, w, h = cv2.boundingRect(contour)
-                aspect_ratio = w / h
-                
-                # Check larger surrounding area for isolation
-                padding = 50
-                roi = cleaned[max(0, y-padding):min(cleaned.shape[0], y+h+padding),
-                            max(0, x-padding):min(cleaned.shape[1], x+w+padding)]
-                
-                if roi.size > 0:
-                    text_density = np.sum(roi > 0) / roi.size
-                    
-                    # Save debug ROI
-                    debug_roi = cleaned.copy()
-                    cv2.rectangle(debug_roi, (x, y), (x + w, y + h), 255, 2)
-                    cv2.putText(debug_roi, f"d={text_density:.2f} r={aspect_ratio:.2f}", 
-                              (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 1)
-                    debug_prefix = f"page_{self.current_page:02d}"
-                    cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_06_region_{x}_{y}.png"), debug_roi)
-                    
-                    # More strict criteria for signatures
-                    if (0.05 < text_density < 0.3 and  # Tighter density range
-                        1.0 < aspect_ratio < 6.0 and  # More typical signature ratio
-                        w > 100 and h > 30):  # Minimum size requirements
-                        # Expand bounding box slightly
-                        x = max(0, x - 10)
-                        y = max(0, y - 5)
-                        w = min(cleaned.shape[1] - x, w + 20)
-                        h = min(cleaned.shape[0] - y, h + 10)
-                        signature_regions.append((x, y, w, h))
-        
-            # Process regions for this pass
             for contour in contours:
                 area = cv2.contourArea(contour)
                 perimeter = cv2.arcLength(contour, True)
@@ -309,6 +266,14 @@ class DocumentPreprocessor:
                     if roi.size > 0:
                         text_density = np.sum(roi > 0) / roi.size
                         
+                        # Save debug ROI
+                        debug_roi = cleaned.copy()
+                        cv2.rectangle(debug_roi, (x, y), (x + w, y + h), 255, 2)
+                        cv2.putText(debug_roi, f"d={text_density:.2f} r={aspect_ratio:.2f}", 
+                                  (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 1)
+                        debug_prefix = f"page_{self.current_page:02d}"
+                        cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_06_region_{x}_{y}.png"), debug_roi)
+                        
                         # More strict criteria for signatures
                         if (0.05 < text_density < 0.3 and  # Tighter density range
                             1.0 < aspect_ratio < 6.0 and  # More typical signature ratio
@@ -321,14 +286,15 @@ class DocumentPreprocessor:
                             h = min(cleaned.shape[0] - y, h + 10)
                             signature_regions.append((x, y, w, h))
                             
-                            # Mask out this signature in the working image with white
+                            # Mask out this signature in both working image and cleaned
                             mask_padding = 10
                             mask_x = max(0, x - mask_padding)
                             mask_y = max(0, y - mask_padding)
                             mask_w = min(working_image.shape[1] - mask_x, w + 2 * mask_padding)
                             mask_h = min(working_image.shape[0] - mask_y, h + 2 * mask_padding)
                             
-                            working_image[mask_y:mask_y+mask_h, mask_x:mask_x+mask_w] = 255
+                            working_image[mask_y:mask_y+mask_h, mask_x:mask_x+mask_w] = 0
+                            cleaned[mask_y:mask_y+mask_h, mask_x:mask_x+mask_w] = 0
                             found_valid_signature = True
                             
                             # Save debug image after masking
