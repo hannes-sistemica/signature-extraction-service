@@ -37,6 +37,23 @@ docker run -p 8000:8000 signature-extraction-service
 
 ### Local Development
 
+#### Prerequisites
+
+On macOS, you'll need to install some system dependencies first:
+
+```bash
+# Install required system libraries for Pillow and PDF processing
+brew install libjpeg zlib poppler tesseract
+```
+
+These dependencies are required for:
+- `libjpeg`: Image processing with Pillow
+- `zlib`: Compression support for Pillow
+- `poppler`: PDF to image conversion (used by pdf2image)
+- `tesseract`: OCR capabilities (optional, for future use)
+
+#### Installation
+
 ```bash
 # Install dependencies using uv
 make install
