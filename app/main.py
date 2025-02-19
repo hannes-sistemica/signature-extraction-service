@@ -3,6 +3,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, List
 import json
+import logging
+import sys
 
 from app.models import (
     DetectionParams,
@@ -33,11 +35,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and cleanup on startup"""
+    logger.info("Starting up signature analysis service")
     init_db()
     cleanup_old_files()
+    logger.info("Initialization complete")
 
 @app.post("/signatures/detect",
     response_model=ProcessingResult,
@@ -51,8 +66,11 @@ async def detect_signatures(
     Returns locations and extracted signatures.
     """
     try:
+        logger.info(f"Processing document: {file.filename}")
         detection_params = DetectionParams.parse_raw(params) if params else DetectionParams()
+        logger.info("Detection parameters parsed successfully")
     except Exception as e:
+        logger.error(f"Invalid parameters format: {str(e)}")
         raise HTTPException(status_code=422, detail=f"Invalid parameters format: {str(e)}")
     
     content = await file.read()
