@@ -12,6 +12,7 @@ import imutils
 from app.models import DetectionParams, ProcessingResult, SignatureLocation
 from app.config import settings
 from app.utils.file_handler import save_temp_file
+from app.config import settings  # Add explicit import
 
 logger = logging.getLogger(__name__)
 
@@ -162,21 +163,21 @@ class DocumentPreprocessor:
         # Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
-        # Apply Gaussian blur
+        # Apply Gaussian blur using environment settings
         blurred = cv2.GaussianBlur(
             gray,
-            self.params.gaussian_blur_kernel,
-            self.params.gaussian_blur_sigma
+            settings.SIGNATURE_GAUSSIAN_BLUR_KERNEL,
+            0  # Auto-compute sigma
         )
         
-        # Apply adaptive thresholding
+        # Apply adaptive thresholding using environment settings
         thresh = cv2.adaptiveThreshold(
             blurred,
             255,
             cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv2.THRESH_BINARY_INV,
-            self.params.adaptive_block_size,
-            self.params.adaptive_c
+            settings.SIGNATURE_ADAPTIVE_BLOCK_SIZE,
+            11  # Default C value
         )
         
         # Noise removal
@@ -201,7 +202,7 @@ class DocumentPreprocessor:
         
         for contour in contours:
             area = cv2.contourArea(contour)
-            if area < 500:  # Minimum area threshold
+            if area < settings.SIGNATURE_MIN_AREA:  # Use environment setting
                 continue
                 
             # Calculate perimeter and shape metrics
@@ -219,7 +220,7 @@ class DocumentPreprocessor:
             complexity = peri * peri / (4 * np.pi * area) if area > 0 else 0
             
             # Signature-specific criteria
-            if (complexity > 20 and  # High complexity
+            if (complexity > settings.SIGNATURE_COMPLEXITY_THRESHOLD and  # Use environment setting
                 0.2 < solidity < 0.95 and  # Not too solid (text) or sparse
                 0.1 < extent < 0.7 and  # Not too dense like printed text
                 0.5 < aspect_ratio < 5):  # Reasonable aspect ratio
