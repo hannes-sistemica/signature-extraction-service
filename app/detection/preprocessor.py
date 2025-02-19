@@ -192,42 +192,49 @@ class DocumentPreprocessor:
         # Find contours
         contours = cv2.findContours(
             preprocessed,
-            cv2.RETR_LIST,
+            cv2.RETR_EXTERNAL,  # Changed to EXTERNAL to avoid nested contours
             cv2.CHAIN_APPROX_SIMPLE
         )
         contours = imutils.grab_contours(contours)
-        
-        # Sort contours by area
-        contours = sorted(contours, key=cv2.contourArea, reverse=True)
         
         signature_regions = []
         
         for contour in contours:
             area = cv2.contourArea(contour)
-            
-            if area < self.params.min_area:
+            if area < 500:  # Minimum area threshold
                 continue
-            
-            # Calculate perimeter and approximate contour
+                
+            # Calculate perimeter and shape metrics
             peri = cv2.arcLength(contour, True)
-            approx = cv2.approxPolyDP(
-                contour,
-                self.params.contour_approx_factor * peri,
-                True
-            )
+            hull = cv2.convexHull(contour)
+            hull_area = cv2.contourArea(hull)
             
             # Get bounding rectangle
-            x, y, w, h = cv2.boundingRect(approx)
+            x, y, w, h = cv2.boundingRect(contour)
             
-            # Calculate shape complexity
-            complexity = peri * peri / (4 * np.pi * area)
-            
-            # Check aspect ratio
+            # Calculate shape characteristics
             aspect_ratio = w / h
+            extent = area / (w * h)  # Area to bounding box ratio
+            solidity = area / hull_area if hull_area > 0 else 0
+            complexity = peri * peri / (4 * np.pi * area) if area > 0 else 0
             
-            if (complexity > self.params.complexity_threshold and
-                self.params.aspect_ratio_min < aspect_ratio < self.params.aspect_ratio_max):
-                signature_regions.append((x, y, w, h))
+            # Signature-specific criteria
+            if (complexity > 20 and  # High complexity
+                0.2 < solidity < 0.95 and  # Not too solid (text) or sparse
+                0.1 < extent < 0.7 and  # Not too dense like printed text
+                0.5 < aspect_ratio < 5):  # Reasonable aspect ratio
+                
+                # Additional text filtering
+                roi = preprocessed[y:y+h, x:x+w]
+                horizontal_projection = np.sum(roi, axis=1)
+                vertical_projection = np.sum(roi, axis=0)
+                
+                # Check for uniform text patterns
+                h_std = np.std(horizontal_projection)
+                v_std = np.std(vertical_projection)
+                
+                if h_std > 1000 and v_std > 1000:  # High variation typical of signatures
+                    signature_regions.append((x, y, w, h))
         
         return signature_regions
 
