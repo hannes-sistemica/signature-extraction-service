@@ -21,6 +21,7 @@ class DocumentPreprocessor:
     
     def __init__(self, params: Optional[DetectionParams] = None):
         self.params = params or DetectionParams()
+        self.current_page = 1  # Track current page number
         
     async def process_document(self,
                              content: bytes,
@@ -44,6 +45,7 @@ class DocumentPreprocessor:
             
             logger.info(f"Starting page processing [total={len(images)}]")
             for page_num, image in enumerate(images, 1):
+                self.current_page = page_num
                 logger.info(f"Processing page [number={page_num}]")
                 # Process each page
                 logger.info(f"Starting image preprocessing [page={page_num}]")
@@ -168,8 +170,9 @@ class DocumentPreprocessor:
         # Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
-        # Save debug image
-        cv2.imwrite(str(Path(settings.TEMP_DIR) / "debug_01_gray.png"), gray)
+        # Save debug image with page number
+        debug_prefix = f"page_{self.current_page:02d}"
+        cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_01_gray.png"), gray)
         
         # Apply adaptive thresholding
         thresh = cv2.adaptiveThreshold(
@@ -178,12 +181,12 @@ class DocumentPreprocessor:
             cv2.THRESH_BINARY_INV, 
             11, 2
         )
-        cv2.imwrite(str(Path(settings.TEMP_DIR) / "debug_02_thresh.png"), thresh)
+        cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_02_thresh.png"), thresh)
         
         # Remove noise
         kernel = np.ones((3,3), np.uint8)
         cleaned = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
-        cv2.imwrite(str(Path(settings.TEMP_DIR) / "debug_03_cleaned.png"), cleaned)
+        cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_03_cleaned.png"), cleaned)
         
         return cleaned
 
@@ -210,10 +213,11 @@ class DocumentPreprocessor:
         
         # Remove lines from original
         mask = cv2.bitwise_or(horizontal, vertical)
-        cv2.imwrite(str(Path(settings.TEMP_DIR) / "debug_04_lines_mask.png"), mask)
+        debug_prefix = f"page_{self.current_page:02d}"
+        cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_04_lines_mask.png"), mask)
         
         cleaned = cv2.bitwise_xor(preprocessed, mask)
-        cv2.imwrite(str(Path(settings.TEMP_DIR) / "debug_05_no_lines.png"), cleaned)
+        cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_05_no_lines.png"), cleaned)
         
         # Find all signatures with masking
         all_regions = []
@@ -233,8 +237,9 @@ class DocumentPreprocessor:
                 logger.info(f"No more regions found after pass {pass_num + 1}")
                 break
             
-            # Save debug image of current state
-            cv2.imwrite(str(Path(settings.TEMP_DIR) / f"debug_working_image_pass_{pass_num}.png"), working_image)
+            # Save debug image of current state with page number
+            debug_prefix = f"page_{self.current_page:02d}"
+            cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_working_image_pass_{pass_num}.png"), working_image)
         
         signature_regions = []
         
@@ -264,7 +269,8 @@ class DocumentPreprocessor:
                     cv2.rectangle(debug_roi, (x, y), (x + w, y + h), 255, 2)
                     cv2.putText(debug_roi, f"d={text_density:.2f} r={aspect_ratio:.2f}", 
                               (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 1)
-                    cv2.imwrite(str(Path(settings.TEMP_DIR) / f"debug_06_region_{x}_{y}.png"), debug_roi)
+                    debug_prefix = f"page_{self.current_page:02d}"
+                    cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_06_region_{x}_{y}.png"), debug_roi)
                     
                     # More strict criteria for signatures
                     if (0.05 < text_density < 0.3 and  # Tighter density range
@@ -315,8 +321,12 @@ class DocumentPreprocessor:
                             # Mask out this signature in the working image with white
                             cv2.rectangle(working_image, (x-5, y-5), (x + w + 5, y + h + 5), 255, -1)
                             
-                            # Save debug image after masking
-                            cv2.imwrite(str(Path(settings.TEMP_DIR) / f"debug_masked_{x}_{y}.png"), working_image)
+                            # Save debug image after masking with page number
+                            debug_prefix = f"page_{self.current_page:02d}"
+                            cv2.imwrite(str(Path(settings.TEMP_DIR) / f"{debug_prefix}_masked_{x}_{y}.png"), working_image)
+                            
+                            # Also mask out in cleaned image to prevent re-detection
+                            cv2.rectangle(cleaned, (x-5, y-5), (x + w + 5, y + h + 5), 0, -1)
             
             # Add valid regions to results
             if signature_regions:
