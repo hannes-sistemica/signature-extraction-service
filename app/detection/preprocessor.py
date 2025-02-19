@@ -312,8 +312,11 @@ class DocumentPreprocessor:
                             h = min(cleaned.shape[0] - y, h + 10)
                             signature_regions.append((x, y, w, h))
                             
-                            # Mask out this signature in the working image
-                            cv2.rectangle(working_image, (x, y), (x + w, y + h), 0, -1)
+                            # Mask out this signature in the working image with white
+                            cv2.rectangle(working_image, (x-5, y-5), (x + w + 5, y + h + 5), 255, -1)
+                            
+                            # Save debug image after masking
+                            cv2.imwrite(str(Path(settings.TEMP_DIR) / f"debug_masked_{x}_{y}.png"), working_image)
             
             # Add valid regions to results
             if signature_regions:
