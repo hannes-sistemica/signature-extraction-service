@@ -163,19 +163,22 @@ class DocumentPreprocessor:
         # Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
-        # Apply minimal Gaussian blur to preserve details
-        blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+        # Normalize image
+        normalized = cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX)
         
-        # Apply Otsu's thresholding for better separation
-        _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        # Apply adaptive thresholding
+        thresh = cv2.adaptiveThreshold(
+            normalized,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY_INV,
+            11,
+            2
+        )
         
-        # Minimal noise removal to preserve signature details
-        noise_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-        opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, noise_kernel, iterations=1)
-        
-        # Light closing to connect nearby components
-        close_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        cleaned = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, close_kernel, iterations=1)
+        # Remove small noise
+        kernel = np.ones((2,2), np.uint8)
+        cleaned = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
         
         return cleaned
 
@@ -218,22 +221,22 @@ class DocumentPreprocessor:
             solidity = area / hull_area if hull_area > 0 else 0
             complexity = peri * peri / (4 * np.pi * area) if area > 0 else 0
             
-            # More lenient signature criteria
-            if (complexity > 5 and  # Lower complexity threshold
-                0.1 < aspect_ratio < 10 and  # Wider aspect ratio range
-                0.01 < extent < 0.9 and  # More lenient density range
-                0.05 < solidity < 0.99):  # More lenient solidity range
+            # Signature-specific criteria
+            if (complexity > 3 and  # Very low complexity threshold for handwriting
+                0.2 < aspect_ratio < 15 and  # Wide aspect ratio for signatures
+                0.01 < extent < 0.95 and  # Very lenient density
+                0.05 < solidity < 0.99 and  # Allow most shapes
+                area > 1000):  # Minimum area to avoid small noise
                 
-                # Additional text filtering
+                # Check for signature-like characteristics
                 roi = preprocessed[y:y+h, x:x+w]
-                horizontal_projection = np.sum(roi, axis=1)
-                vertical_projection = np.sum(roi, axis=0)
                 
-                # Check for uniform text patterns
-                h_std = np.std(horizontal_projection)
-                v_std = np.std(vertical_projection)
+                # Calculate stroke width variation
+                distances = cv2.distanceTransform(roi, cv2.DIST_L2, 3)
+                stroke_std = np.std(distances[distances > 0])
                 
-                if h_std > 500 and v_std > 500:  # Lower threshold for variation
+                # Check for non-uniform strokes (typical in signatures)
+                if stroke_std > 2.0:
                     signature_regions.append((x, y, w, h))
         
         return signature_regions
