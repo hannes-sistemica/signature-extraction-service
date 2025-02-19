@@ -5,6 +5,7 @@ from typing import Optional, List
 import json
 import logging
 import sys
+from pathlib import Path
 
 from app.models import (
     DetectionParams,
@@ -204,13 +205,17 @@ async def delete_stored_signature(signature_id: str):
 )
 async def get_file(filename: str):
     """Retrieve a processed file (annotated page or extracted signature)"""
-    file_path = Path("temp_signatures") / filename
+    logger.info(f"Retrieving file: {filename}")
+    
+    file_path = Path(settings.TEMP_DIR) / filename
     if not file_path.exists():
+        logger.error(f"File not found: {filename}")
         raise HTTPException(
             status_code=404, 
             detail="File not found"
         )
     
+    logger.info(f"Serving file: {filename}")
     return FileResponse(
         str(file_path),
         media_type="image/png",
