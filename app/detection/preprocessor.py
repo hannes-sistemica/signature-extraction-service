@@ -163,10 +163,10 @@ class DocumentPreprocessor:
         # Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
-        # Apply Gaussian blur using environment settings
+        # Apply Gaussian blur
         blurred = cv2.GaussianBlur(
             gray,
-            settings.SIGNATURE_GAUSSIAN_BLUR_KERNEL,
+            (5, 5),  # Fixed kernel size
             0  # Auto-compute sigma
         )
         
