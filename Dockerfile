@@ -1,5 +1,5 @@
 # Builder stage
-FROM --platform=$BUILDPLATFORM python:3.11.7-slim AS builder
+FROM --platform=$TARGETPLATFORM python:3.11.7-slim AS builder
 
 # Set working directory
 WORKDIR /app
