@@ -38,7 +38,7 @@ test: ## Run tests
 	uv pytest
 
 run: ## Run the FastAPI application locally
-	uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	PYTHON=/opt/homebrew/opt/python@3.11/bin/python3.11 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 docker-build: ## Build Docker image
 	docker build -t signature-extraction-service .
