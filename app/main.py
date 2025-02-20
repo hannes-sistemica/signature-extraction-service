@@ -136,7 +136,7 @@ async def compare_two_signatures(
     
     return compare_signatures(features1, features2, comparison_params)
 
-@app.post("/signatures/find-similar",
+@app.post("/signatures/find",
     summary="Find similar signatures")
 async def find_similar_signatures(
     file: UploadFile = File(...),
